@@ -7,7 +7,7 @@
 
 - **网页搜索**：自动调用 Tavily 实时搜索，回答不受模型知识截止日期限制
 - **多轮记忆**：基于 LangGraph Checkpointer，同一会话记住上下文与搜索结果（thread_id 会话隔离）
-- **自研 MCP Server**：文件读写 / 时间查询工具，通过 MCP 标准协议接入工具节点
+- **自研 MCP Server**：文件读写 / 时间查询工具，通过 MCP 标准协议（stdio）接入工具节点
 - **报错兜底**：异常捕获，崩溃不死循环
 - **成本控制**：提示词约束搜索次数，避免无谓 token 消耗
 
@@ -24,10 +24,7 @@ pip install langchain langchain-tavily langgraph langchain-mcp-adapters fastmcp 
 # 2. 配置 .env（项目根目录）
 TAVILY_API_KEY=你的key
 
-# 3. 启动 MCP Server（独立进程，被 Agent 通过 stdio 调用）
-python mcp_server.py
-
-# 4. 运行 Agent
+# 3. 运行 Agent（mcp_server.py 会被 Agent 自动启动，无需手动运行）
 python 智能助手.py
 ```
 
@@ -52,6 +49,8 @@ python 智能助手.py
   thread_id 隔离会话；对比手动拼接历史：不漏中间消息、并发安全、可平滑升级 SqliteSaver/Postgres
 - **工具分层**：可复用能力（搜索、文件）走 MCP 标准协议，项目内私有逻辑用 @tool，
   两者混用是 Agent 工程的标准做法
+- **异步设计**：MCP 连接/调用是跨进程 IO，采用 async/await 防止阻塞；
+  工具定义为同步函数，FastMCP 自动适配协议层
 - **成本与稳定**：system_prompt 约束搜索次数 + 异常捕获兜底，防止死循环与崩溃
 
 ## 项目结构
@@ -59,7 +58,7 @@ python 智能助手.py
 ```
 智能助手/
 ├── 智能助手.py      # 主程序：工具 / 模型 / Agent / 交互循环
-├── mcp_server.py    # 自研 MCP Server：文件读写 + 时间工具
+├── mcp_server.py    # 自研 MCP Server：文件读写 + 时间查询
 ├── README.md
 └── .gitignore
 ```
